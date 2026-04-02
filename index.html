@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facial Emotion Recognition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --primary: #3b82f6;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at top right, #1e1b4b, transparent 40%),
+                radial-gradient(circle at bottom left, #064e3b, transparent 40%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            gap: 2rem;
+            max-width: 1200px;
+            width: 100%;
+            height: 80vh;
+        }
+
+        .glass-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Video Section */
+        .video-section {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .video-container {
+            position: relative;
+            flex: 1;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #000;
+        }
+
+        #video-feed {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Animated Bounding Box */
+        #bounding-box {
+            position: absolute;
+            border: 3px solid white;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5), inset 0 0 20px rgba(255, 255, 255, 0.2);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            /* Smooth movement */
+            pointer-events: none;
+            display: none;
+            /* hidden when no face */
+        }
+
+        /* Emoji animation logic */
+        @keyframes floatUp {
+            0% {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(-50px) scale(1.5);
+                opacity: 0;
+            }
+        }
+
+        .floating-emoji {
+            position: absolute;
+            font-size: 2rem;
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            animation: floatUp 1.5s ease-out infinite;
+        }
+
+        /* Dashboard Section */
+        .dashboard {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .dominant-emotion {
+            text-align: center;
+            padding: 2rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .dominant-emotion h2 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: color 0.3s ease;
+        }
+
+        /* Bar Chart */
+        .bars-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow-y: auto;
+            flex: 1;
+            padding-right: 10px;
+        }
+
+        .bar-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .bar-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .bar-bg {
+            height: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        .bar-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--primary);
+            border-radius: 10px;
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease;
+            box-shadow: 0 0 10px var(--primary);
+        }
+
+        /* Emotion Colors */
+        .color-happy {
+            color: #4ade80 !important;
+            background-color: #4ade80 !important;
+        }
+
+        .color-sad {
+            color: #60a5fa !important;
+            background-color: #60a5fa !important;
+        }
+
+        .color-angry {
+            color: #f87171 !important;
+            background-color: #f87171 !important;
+        }
+
+        .color-surprise {
+            color: #facc15 !important;
+            background-color: #facc15 !important;
+        }
+
+        .color-neutral {
+            color: #94a3b8 !important;
+            background-color: #94a3b8 !important;
+        }
+
+        .color-fear {
+            color: #c084fc !important;
+            background-color: #c084fc !important;
+        }
+
+        .color-disgust {
+            color: #a3e635 !important;
+            background-color: #a3e635 !important;
+        }
+
+        .color-contempt {
+            color: #fb923c !important;
+            background-color: #fb923c !important;
+        }
+
+        .project-credit {
+            position: absolute;
+            top: 30px;
+            right: 40px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.4);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            z-index: 100;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="project-credit">Akshay's Project</div>
+
+    <div class="container">
+        <!-- Live Camera Stream -->
+        <div class="glass-panel video-section">
+            <h1 style="margin-bottom: 20px;">Facial Emotion Recognition</h1>
+            <div class="video-container" id="vid-container">
+                <img id="video-feed" src="/video_feed" alt="Video feed">
+
+                <!-- Animated Box Overlay -->
+                <div id="bounding-box">
+                    <div class="floating-emoji" id="box-emoji"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Dashboard -->
+        <div class="glass-panel dashboard">
+            <h1>Analytics</h1>
+
+            <div class="dominant-emotion">
+                <p>Dominant Emotion:</p>
+                <h2 id="main-emotion-text">Scanning...</h2>
+                <p style="font-size: 1.2rem; color: #94a3b8;"><span id="main-confidence">0</span>%</p>
+            </div>
+
+            <h3 style="margin-top: 10px; font-weight: 500;">Live Readings</h3>
+            <div class="bars-container" id="bars-container">
+                <!-- Bars will be auto-generated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const colorMap = {
+            'Happy': '#4ade80',
+            'Sad': '#60a5fa',
+            'Angry': '#f87171',
+            'Surprise': '#facc15',
+            'Neutral': '#94a3b8',
+            'Fear': '#c084fc',
+            'Disgust': '#a3e635',
+            'Contempt': '#fb923c',
+            'None': '#94a3b8'
+        };
+
+        const emojiMap = {
+            'Happy': '😊',
+            'Sad': '😢',
+            'Angry': '😠',
+            'Surprise': '😲',
+            'Neutral': '😐',
+            'Fear': '😨',
+            'Disgust': '🤢',
+            'Contempt': '😒',
+            'None': ''
+        };
+
+        const emotionsList = ['Happy', 'Sad', 'Angry', 'Surprise', 'Neutral', 'Fear', 'Disgust', 'Contempt'];
+
+        // Initialize bars
+        const barsContainer = document.getElementById('bars-container');
+        const bars = {};
+
+        emotionsList.forEach(emotion => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'bar-wrapper';
+
+            const header = document.createElement('div');
+            header.className = 'bar-header';
+            header.innerHTML = `<span>${emotion}</span><span id="val-${emotion}">0%</span>`;
+
+            const bg = document.createElement('div');
+            bg.className = 'bar-bg';
+
+            const fill = document.createElement('div');
+            fill.className = 'bar-fill';
+            fill.id = `bar-${emotion}`;
+            fill.style.backgroundColor = colorMap[emotion];
+            fill.style.boxShadow = `0 0 10px ${colorMap[emotion]}80`; // 80 is hex for 50% opacity
+
+            bg.appendChild(fill);
+            wrapper.appendChild(header);
+            wrapper.appendChild(bg);
+            barsContainer.appendChild(wrapper);
+
+            bars[emotion] = fill;
+        });
+
+        // DOM elements
+        const box = document.getElementById('bounding-box');
+        const boxEmoji = document.getElementById('box-emoji');
+        const videoElement = document.getElementById('video-feed');
+        const mainEmotionText = document.getElementById('main-emotion-text');
+        const mainConfidence = document.getElementById('main-confidence');
+
+        // Poll API every 150ms for data
+        setInterval(async () => {
+            try {
+                const response = await fetch('/api/data');
+                const data = await response.json();
+
+                const domEmotion = data.emotion;
+
+                // Update Main Text
+                mainEmotionText.innerText = domEmotion;
+                mainEmotionText.style.color = colorMap[domEmotion];
+                mainConfidence.innerText = domEmotion !== 'None' ? Math.round(data.confidence) : 0;
+
+                // Update Progress Bars
+                if (data.all_scores) {
+                    for (const [emo, score] of Object.entries(data.all_scores)) {
+                        if (bars[emo]) {
+                            bars[emo].style.width = `${score}%`;
+                            document.getElementById(`val-${emo}`).innerText = `${Math.round(score)}%`;
+                        }
+                    }
+                }
+
+                // Update Bounding Box
+                if (data.face_box && domEmotion !== 'None') {
+                    // Coordinates are received as percentages (0.0 to 1.0)
+                    // We map them to the rendered video element size
+                    const viewWidth = videoElement.clientWidth;
+                    const viewHeight = videoElement.clientHeight;
+
+                    const width = data.face_box.w * viewWidth;
+                    const height = data.face_box.h * viewHeight;
+                    const top = data.face_box.y * viewHeight;
+                    const left = data.face_box.x * viewWidth;
+
+                    box.style.display = 'block';
+                    box.style.width = `${width}px`;
+                    box.style.height = `${height}px`;
+                    box.style.top = `${top}px`;
+                    box.style.left = `${left}px`;
+
+                    // Style box to match emotion
+                    box.style.borderColor = colorMap[domEmotion];
+                    box.style.boxShadow = `0 0 20px ${colorMap[domEmotion]}80, inset 0 0 20px ${colorMap[domEmotion]}30`;
+
+                    // Set Emoji
+                    boxEmoji.innerText = emojiMap[domEmotion];
+                } else {
+                    box.style.display = 'none';
+                }
+
+            } catch (err) {
+                console.error("Connection error:", err);
+            }
+        }, 150);
+    </script>
+</body>
+
+</html>
